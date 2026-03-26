@@ -10,6 +10,48 @@ const WEEKS = Array.from({ length: 20 }, (_, i) => {
   };
 });
 
+const DATASETS = [
+  { id: "smap", name: "SMAP L4", desc: "Soil Moisture", doi: "10.5067/LWJ6TF5SZRG3", hw: "VPU", color: "#3b82f6" },
+  { id: "ndvi", name: "NDVI/NDWI", desc: "Vegetation Indices", doi: "10.5067/MODIS/MOD13Q1.061", hw: "VPU", color: "#22c55e" },
+  { id: "ptjpl", name: "PT-JPL ET", desc: "Evapotranspiration", doi: "10.5067/ECOSTRESS/ECO3ETPTJPL.001", hw: "GPU", color: "#f59e0b" },
+  { id: "esi", name: "ESI L4", desc: "Evaporative Stress", doi: "10.5067/ECOSTRESS/ECO4ESIALEXI.001", hw: "GPU", color: "#ef4444" },
+];
+
+const HW_PIPELINE = [
+  { id: "fpga", name: "FPGA", role: "Cloud mask & sensor I/O", power: "~1W", status: "always-on", color: "#8b5cf6" },
+  { id: "vpu", name: "Myriad X VPU", role: "NDVI/NDWI + anomaly detect", power: "~2W", status: "always-on", color: "#06b6d4" },
+  { id: "gpu", name: "AMD GPU", role: "PT-JPL & severity mapping", power: "~15W", status: "on-alert", color: "#f97316" },
+  { id: "cpu", name: "CPU", role: "Scheduling & downlink logic", power: "~5W", status: "always-on", color: "#10b981" },
+];
+
+function getDatasetValues(regionId, week, droughtSev) {
+  const seed = regionId.charCodeAt(0) + regionId.charCodeAt(1) * 7;
+  const jitter = (offset) => Math.sin(seed * 0.1 + week * 0.3 + offset) * 0.08;
+  const smapBaseline = 0.35;
+  const smapVal = Math.max(0, Math.min(1, smapBaseline - droughtSev * 0.3 + jitter(1)));
+  const ndviVal = Math.max(0, Math.min(1, 0.7 - droughtSev * 0.55 + jitter(2)));
+  const ndwiVal = Math.max(-0.3, Math.min(0.5, 0.2 - droughtSev * 0.45 + jitter(3)));
+  const etVal = Math.max(0, Math.min(1, 0.8 - droughtSev * 0.6 + jitter(4)));
+  const esiVal = Math.max(0, Math.min(1, 1.0 - droughtSev * 0.85 + jitter(5)));
+  return { smap: Math.round(smapVal * 1000) / 1000, ndvi: Math.round(ndviVal * 1000) / 1000, ndwi: Math.round(ndwiVal * 1000) / 1000, ptjpl: Math.round(etVal * 1000) / 1000, esi: Math.round(esiVal * 1000) / 1000 };
+}
+
+function getTrend(regionId, week) {
+  if (week < 2) return "stable";
+  const prevSev = droughtCurves[regionId] ? droughtCurves[regionId](week - 2) : 0;
+  const currSev = droughtCurves[regionId] ? droughtCurves[regionId](week) : 0;
+  const delta = currSev - prevSev;
+  if (delta > 0.05) return "worsening";
+  if (delta < -0.02) return "improving";
+  return "stable";
+}
+
+function getConfidence(droughtSev, week) {
+  const sourceCount = droughtSev > 0.3 ? 4 : droughtSev > 0.1 ? 3 : 2;
+  const base = 0.6 + sourceCount * 0.08 + Math.min(week * 0.01, 0.1);
+  return Math.min(0.98, Math.round(base * 100) / 100);
+}
+
 const REGIONS = [
   { id: "ND", name: "North Dakota", cx: 168, cy: 52, w: 88, h: 44, group: "north" },
   { id: "SD", name: "South Dakota", cx: 168, cy: 104, w: 88, h: 44, group: "north" },
@@ -62,7 +104,10 @@ function getAlerts(week) {
     if (sev < 0.12) return null;
     const level = sev >= 0.7 ? "critical" : sev >= 0.45 ? "severe" : sev >= 0.22 ? "moderate" : "watch";
     const leadDays = sev >= 0.5 ? 18 : sev >= 0.3 ? 14 : sev >= 0.15 ? 9 : 5;
-    return { ...r, sev, level, leadDays };
+    const datasets = getDatasetValues(r.id, week, sev);
+    const trend = getTrend(r.id, week);
+    const confidence = getConfidence(sev, week);
+    return { ...r, sev, level, leadDays, datasets, trend, confidence };
   })
     .filter(Boolean)
     .sort((a, b) => b.sev - a.sev);
@@ -198,14 +243,28 @@ export default function SoilSentinelDashboard() {
             </div>
 
             {hoveredAlert && (
-              <div style={{ position: "absolute", bottom: 14, left: 18, zIndex: 3, padding: "10px 14px", borderRadius: 10, background: "rgba(6,12,24,0.92)", border: `1px solid ${sevColor(hoveredAlert.sev)}44`, backdropFilter: "blur(12px)", maxWidth: 230 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <div style={{ position: "absolute", bottom: 14, left: 18, zIndex: 3, padding: "10px 14px", borderRadius: 10, background: "rgba(6,12,24,0.92)", border: `1px solid ${sevColor(hoveredAlert.sev)}44`, backdropFilter: "blur(12px)", maxWidth: 280 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: "#f1f5f9" }}>{hoveredAlert.name}</span>
                   <Badge level={hoveredAlert.level} />
                 </div>
-                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.6 }}>
-                  Stress index: <span style={{ color: sevColor(hoveredAlert.sev), fontWeight: 600, fontFamily: "'Space Mono', monospace" }}>{Math.round(hoveredAlert.sev * 100)}%</span><br />
+                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.6, marginBottom: 8 }}>
+                  Stress index: <span style={{ color: sevColor(hoveredAlert.sev), fontWeight: 600, fontFamily: "'Space Mono', monospace" }}>{Math.round(hoveredAlert.sev * 100)}%</span>
+                  {" "}<span style={{ color: hoveredAlert.trend === "worsening" ? "#ef4444" : hoveredAlert.trend === "improving" ? "#22c55e" : "#64748b", fontWeight: 600 }}>
+                    {hoveredAlert.trend === "worsening" ? "\u2191" : hoveredAlert.trend === "improving" ? "\u2193" : "\u2192"} {hoveredAlert.trend}
+                  </span><br />
+                  Confidence: <span style={{ color: "#94a3b8", fontWeight: 600, fontFamily: "'Space Mono', monospace" }}>{Math.round(hoveredAlert.confidence * 100)}%</span><br />
                   Detected <span style={{ color: "#06b6d4", fontWeight: 600 }}>{hoveredAlert.leadDays} days</span> before traditional methods
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+                  {DATASETS.map((ds) => (
+                    <div key={ds.id} style={{ textAlign: "center", padding: "4px 2px", borderRadius: 5, background: `${ds.color}0c`, border: `1px solid ${ds.color}18` }}>
+                      <div style={{ fontSize: 8, color: ds.color, fontWeight: 700 }}>{ds.id.toUpperCase()}</div>
+                      <div style={{ fontSize: 11, color: "#e2e8f0", fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>
+                        {hoveredAlert.datasets[ds.id]}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -303,42 +362,68 @@ export default function SoilSentinelDashboard() {
           </div>
         </main>
 
-        <aside style={{ width: 300, borderLeft: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.01)", flexShrink: 0 }}>
-          <div style={{ padding: 16, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: "#3e4c63", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Detection latency</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.12)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#06b6d4", letterSpacing: "0.06em", marginBottom: 4 }}>SOILSENTINEL</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#22d3ee", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>&lt;90m</div>
-                <div style={{ fontSize: 10, color: "#1e4046", marginTop: 3 }}>per orbit pass</div>
-              </div>
-              <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#52607a", letterSpacing: "0.06em", marginBottom: 4 }}>TRADITIONAL</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#64748b", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>3-7d</div>
-                <div style={{ fontSize: 10, color: "#1e293b", marginTop: 3 }}>ground processing</div>
-              </div>
+        <aside style={{ width: 320, borderLeft: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.01)", flexShrink: 0 }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: "#3e4c63", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Hybrid processing pipeline</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {HW_PIPELINE.map((hw) => {
+                const gpuActive = critCount > 0 || alerts.some((a) => a.level === "severe");
+                const isActive = hw.id === "gpu" ? gpuActive : true;
+                return (
+                  <div key={hw.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, background: isActive ? `${hw.color}08` : "rgba(255,255,255,0.015)", border: `1px solid ${isActive ? `${hw.color}20` : "rgba(255,255,255,0.03)"}`, transition: "all 0.4s" }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? hw.color : "#334155", boxShadow: isActive ? `0 0 8px ${hw.color}60` : "none", flexShrink: 0, transition: "all 0.4s" }}>
+                      {isActive && hw.id !== "gpu" && <style>{`@keyframes pulse-${hw.id}{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: isActive ? hw.color : "#475569", letterSpacing: "0.04em" }}>{hw.name}</div>
+                      <div style={{ fontSize: 9, color: "#3e4c63", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{hw.role}</div>
+                    </div>
+                    <div style={{ fontSize: 9, color: "#334155", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{hw.power}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div style={{ padding: "12px 16px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: "#3e4c63", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Downlink efficiency</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: "#475569" }}>Raw vs processed</span>
-              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Space Mono', monospace", color: "#a78bfa" }}>{pctSaved}% saved</span>
-            </div>
-            <div style={{ position: "relative", height: 8, borderRadius: 4, background: "rgba(255,255,255,0.04)", overflow: "hidden", marginBottom: 14 }}>
-              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", borderRadius: 4, width: `${100 - pctSaved}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)", transition: "width 0.6s ease", minWidth: 4 }} />
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: "#3e4c63", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Data sources</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+              {DATASETS.map((ds) => {
+                const isActive = ds.id === "ptjpl" || ds.id === "esi" ? critCount > 0 || alerts.some((a) => a.level === "severe") : true;
+                return (
+                  <div key={ds.id} style={{ padding: "6px 8px", borderRadius: 7, background: isActive ? `${ds.color}0a` : "rgba(255,255,255,0.015)", border: `1px solid ${isActive ? `${ds.color}18` : "rgba(255,255,255,0.03)"}`, transition: "all 0.4s" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: isActive ? ds.color : "#475569" }}>{ds.name}</div>
+                    <div style={{ fontSize: 9, color: "#3e4c63" }}>{ds.desc}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div style={{ padding: "12px 16px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: "#3e4c63", textTransform: "uppercase", letterSpacing: "0.08em" }}>Downlink output</span>
+              <span style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "#a78bfa" }}>{pctSaved}% saved</span>
+            </div>
+            <div style={{ position: "relative", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.04)", overflow: "hidden", marginBottom: 8 }}>
+              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", borderRadius: 3, width: `${100 - pctSaved}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)", transition: "width 0.6s ease", minWidth: 4 }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 9, color: "#3e4c63" }}>
+              <div><span style={{ color: "#475569", fontWeight: 600 }}>Format:</span> GeoJSON + COG</div>
+              <div><span style={{ color: "#475569", fontWeight: 600 }}>Alert pkt:</span> ~10 KB</div>
+              <div><span style={{ color: "#475569", fontWeight: 600 }}>Raw:</span> {rawMB} MB/pass</div>
+              <div><span style={{ color: "#475569", fontWeight: 600 }}>Processed:</span> {procMB} MB/pass</div>
+            </div>
+          </div>
+
+          <div style={{ padding: "8px 16px 4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: 10, fontWeight: 600, color: "#3e4c63", textTransform: "uppercase", letterSpacing: "0.08em" }}>Active alerts</span>
             <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: "#475569" }}>{alerts.length}</span>
           </div>
 
           <div className="scroll-area" style={{ flex: 1, overflowY: "auto", padding: "4px 16px 16px" }}>
             {alerts.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px 16px", color: "#1e293b" }}>
+              <div style={{ textAlign: "center", padding: "36px 16px", color: "#1e293b" }}>
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1e3a2f" strokeWidth="1.5" style={{ margin: "0 auto 10px", display: "block" }}>
                   <circle cx="12" cy="12" r="10" /><path d="M8 12l2.5 2.5L16 9" />
                 </svg>
@@ -346,36 +431,54 @@ export default function SoilSentinelDashboard() {
                 <div style={{ fontSize: 11, color: "#1e293b", marginTop: 4 }}>Advance the timeline to observe drought onset</div>
               </div>
             ) : (
-              alerts.map((a) => (
-                <div key={a.id} className="alert-card"
-                  onMouseEnter={() => setHovered(a.id)} onMouseLeave={() => setHovered(null)}
-                  style={{
-                    padding: "10px 12px", borderRadius: 10, marginBottom: 6, cursor: "pointer",
-                    background: hovered === a.id ? `${PALETTE[a.level].bg}` : "rgba(255,255,255,0.015)",
-                    border: `1px solid ${hovered === a.id ? PALETTE[a.level].stroke : "rgba(255,255,255,0.04)"}`,
-                  }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "#e2e8f0" }}>{a.name}</span>
-                    <Badge level={a.level} />
+              alerts.map((a) => {
+                const trendIcon = a.trend === "worsening" ? "\u2191" : a.trend === "improving" ? "\u2193" : "\u2192";
+                const trendColor = a.trend === "worsening" ? "#ef4444" : a.trend === "improving" ? "#22c55e" : "#64748b";
+                return (
+                  <div key={a.id} className="alert-card"
+                    onMouseEnter={() => setHovered(a.id)} onMouseLeave={() => setHovered(null)}
+                    style={{
+                      padding: "10px 12px", borderRadius: 10, marginBottom: 6, cursor: "pointer",
+                      background: hovered === a.id ? `${PALETTE[a.level].bg}` : "rgba(255,255,255,0.015)",
+                      border: `1px solid ${hovered === a.id ? PALETTE[a.level].stroke : "rgba(255,255,255,0.04)"}`,
+                    }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: "#e2e8f0" }}>{a.name}</span>
+                      <Badge level={a.level} />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, marginBottom: 4 }}>
+                      <span style={{ color: "#52607a" }}>
+                        Stress <span style={{ color: sevColor(a.sev), fontWeight: 600, fontFamily: "'Space Mono', monospace" }}>{Math.round(a.sev * 100)}%</span>
+                      </span>
+                      <span style={{ color: "#0891b2", fontWeight: 500 }}>+{a.leadDays}d early</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, fontSize: 10, marginBottom: 5 }}>
+                      <span style={{ color: trendColor, fontWeight: 600 }}>{trendIcon} {a.trend}</span>
+                      <span style={{ color: "#475569" }}>conf <span style={{ color: "#94a3b8", fontFamily: "'Space Mono', monospace" }}>{Math.round(a.confidence * 100)}%</span></span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3, marginBottom: 5 }}>
+                      {DATASETS.map((ds) => (
+                        <div key={ds.id} style={{ textAlign: "center", padding: "3px 0", borderRadius: 4, background: `${ds.color}08`, border: `1px solid ${ds.color}12` }}>
+                          <div style={{ fontSize: 8, color: ds.color, fontWeight: 700, letterSpacing: "0.04em" }}>{ds.id.toUpperCase()}</div>
+                          <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>
+                            {ds.id === "ndvi" ? a.datasets.ndvi : ds.id === "smap" ? a.datasets.smap : ds.id === "ptjpl" ? a.datasets.ptjpl : a.datasets.esi}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.04)", overflow: "hidden" }}>
+                      <div style={{ width: `${Math.min(a.sev * 100, 100)}%`, height: "100%", borderRadius: 2, background: sevColor(a.sev), opacity: 0.7, transition: "width 0.5s" }} />
+                    </div>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
-                    <span style={{ color: "#52607a" }}>
-                      Stress <span style={{ color: sevColor(a.sev), fontWeight: 600, fontFamily: "'Space Mono', monospace" }}>{Math.round(a.sev * 100)}%</span>
-                    </span>
-                    <span style={{ color: "#0891b2", fontWeight: 500 }}>+{a.leadDays}d early</span>
-                  </div>
-                  <div style={{ marginTop: 7, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.04)", overflow: "hidden" }}>
-                    <div style={{ width: `${Math.min(a.sev * 100, 100)}%`, height: "100%", borderRadius: 2, background: sevColor(a.sev), opacity: 0.7, transition: "width 0.5s" }} />
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
-          <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.01)" }}>
-            <div style={{ fontSize: 10, color: "#1e293b", lineHeight: 1.7 }}>
-              <span style={{ color: "#334155", fontWeight: 600 }}>Platform</span> Unibap iX5-106 · TRL 9<br />
-              <span style={{ color: "#334155", fontWeight: 600 }}>Algorithms</span> SMAP L4 · PT-JPL · NDVI/NDWI · ESI<br />
+          <div style={{ padding: "8px 16px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.01)" }}>
+            <div style={{ fontSize: 9, color: "#1e293b", lineHeight: 1.8 }}>
+              <span style={{ color: "#334155", fontWeight: 600 }}>Platform</span> Heterogeneous COTS (VPU+GPU+FPGA)<br />
+              <span style={{ color: "#334155", fontWeight: 600 }}>Output</span> GeoJSON polygons · severity 0-5 · trends<br />
               <span style={{ color: "#334155", fontWeight: 600 }}>Scenario</span> 2012 U.S. Midwest drought
             </div>
           </div>
