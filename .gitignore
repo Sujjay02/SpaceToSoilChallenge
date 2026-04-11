@@ -1,0 +1,37 @@
+# Node / React
+node_modules/
+dist/
+.next/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# NASA data files (large binary — do not commit)
+*.nc
+*.h5
+*.hdf
+*.hdf5
+*.tif
+*.geotiff
+*.img
+
+# Earthdata credentials (never commit)
+.netrc
+.env
+.env.local
+
+# Pipeline output (generated)
+output/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
