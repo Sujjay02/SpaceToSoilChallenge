@@ -225,7 +225,191 @@ export default function SoilSentinelDashboard() {
         </div>
       </header>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <nav style={{ borderBottom: "1px solid #e2ddd7", background: "#ffffff", padding: "0 28px", display: "flex", flexShrink: 0 }}>
+        {[{ id: "dashboard", label: "Dashboard" }, { id: "background", label: "Background" }, { id: "about", label: "About" }].map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            padding: "10px 18px", background: "none", border: "none", borderBottom: `2px solid ${tab === t.id ? "#4a7c59" : "transparent"}`,
+            cursor: "pointer", fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
+            color: tab === t.id ? "#1c1a17" : "#9b8f83", marginBottom: -1,
+            transition: "all 0.15s", fontFamily: "'DM Sans', system-ui, sans-serif",
+          }}>{t.label}</button>
+        ))}
+      </nav>
+
+      {tab === "background" && (
+        <div style={{ flex: 1, overflowY: "auto", padding: "40px 0", background: "#f7f4ef" }}>
+          <div style={{ maxWidth: 820, margin: "0 auto", padding: "0 32px", display: "flex", flexDirection: "column", gap: 32 }}>
+
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>The Problem</div>
+              <h2 style={{ fontSize: 28, fontWeight: 700, color: "#1c1a17", letterSpacing: "-0.03em", lineHeight: 1.2, marginBottom: 16 }}>The 2012 U.S. Midwest Drought</h2>
+              <p style={{ fontSize: 15, color: "#4a4540", lineHeight: 1.75, marginBottom: 20 }}>
+                The summer of 2012 brought the most severe drought the United States had seen since the 1950s. Across 80% of the country's agricultural land, crops withered, rivers dropped to record lows, and communities faced water shortages that stretched into the following year. The economic toll exceeded <strong style={{ color: "#1c1a17" }}>$30 billion</strong> — making it one of the costliest natural disasters in U.S. history.
+              </p>
+              <p style={{ fontSize: 15, color: "#4a4540", lineHeight: 1.75 }}>
+                What made 2012 particularly devastating was how quickly conditions deteriorated. Traditional ground-based monitoring networks detected the emerging crisis too late for farmers and emergency managers to meaningfully respond. By the time drought was confirmed on the ground, the window for early intervention had already closed.
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+              {[
+                { value: "$30B+", label: "Economic losses", sub: "costlier than Hurricane Irene" },
+                { value: "80%", label: "Agricultural land affected", sub: "across 26 states" },
+                { value: "14–18d", label: "SoilSentinel early warning", sub: "vs. ground-based detection" },
+              ].map((s) => (
+                <div key={s.value} style={{ padding: "20px 22px", background: "#ffffff", borderRadius: 12, border: "1px solid #e2ddd7" }}>
+                  <div style={{ fontSize: 30, fontWeight: 700, color: "#4a7c59", fontFamily: "'Space Mono', monospace", lineHeight: 1, marginBottom: 6 }}>{s.value}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1c1a17", marginBottom: 3 }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: "#9b8f83" }}>{s.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ height: 1, background: "#e2ddd7" }} />
+
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>Why Space</div>
+              <h3 style={{ fontSize: 21, fontWeight: 700, color: "#1c1a17", letterSpacing: "-0.02em", marginBottom: 14 }}>Satellite sensors see drought before the ground does</h3>
+              <p style={{ fontSize: 15, color: "#4a4540", lineHeight: 1.75, marginBottom: 16 }}>
+                Soil moisture stress, vegetation decline, and evapotranspiration deficits all manifest in satellite data <em>weeks before</em> they become visible or measurable at ground level. By fusing multiple satellite data streams — soil moisture, vegetation health, energy flux, and evaporative stress — SoilSentinel builds a composite drought signal with far greater confidence than any single dataset alone.
+              </p>
+              <p style={{ fontSize: 15, color: "#4a4540", lineHeight: 1.75 }}>
+                The critical bottleneck has always been bandwidth. A single satellite pass generates ~500 MB of raw sensor data. Downlinking everything is slow, expensive, and energy-intensive. SoilSentinel moves the intelligence on-orbit: process on the satellite, downlink only what matters.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>The Four Data Streams</div>
+              {[
+                { name: "SMAP L4", color: "#3d6b7c", tag: "Soil Moisture Active Passive", body: "NASA's SMAP satellite measures the water content of the top 5cm of soil globally every 2–3 days. Declining soil moisture is the earliest measurable signal of drought onset, often detectable 2–3 weeks before crop stress becomes visible." },
+                { name: "NDVI / NDWI", color: "#4a7c59", tag: "Vegetation & Water Index · MODIS", body: "The Normalized Difference Vegetation Index tracks photosynthetic activity; NDWI tracks leaf water content. Together they reveal whether vegetation is under water stress — a leading indicator that precedes yield loss by weeks." },
+                { name: "PT-JPL ET", color: "#c17f24", tag: "Evapotranspiration · ECOSTRESS", body: "Evapotranspiration — the combined water loss from soil evaporation and plant transpiration — is a direct measure of the land surface water balance. When ET falls below the climatological norm, drought is taking hold. PT-JPL is a physics-based ET model driven by ECOSTRESS thermal imagery." },
+                { name: "ESI L4", color: "#c0392b", tag: "Evaporative Stress Index · ECOSTRESS", body: "ESI normalizes actual ET against reference ET to isolate crop water stress independent of season or climate zone. High ESI values indicate plants are transpiring normally; low values signal severe stress. ESI is the most direct proxy for agricultural drought impact." },
+              ].map((ds) => (
+                <div key={ds.name} style={{ padding: "16px 20px", background: "#ffffff", borderRadius: 10, border: "1px solid #e2ddd7", display: "flex", gap: 16 }}>
+                  <div style={{ width: 4, borderRadius: 2, background: ds.color, flexShrink: 0, alignSelf: "stretch" }} />
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: "#1c1a17" }}>{ds.name}</span>
+                      <span style={{ fontSize: 10, color: ds.color, fontWeight: 600, background: `${ds.color}12`, padding: "2px 8px", borderRadius: 4 }}>{ds.tag}</span>
+                    </div>
+                    <p style={{ fontSize: 13, color: "#4a4540", lineHeight: 1.65, margin: 0 }}>{ds.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ height: 1, background: "#e2ddd7" }} />
+
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>The Hardware Architecture</div>
+              <h3 style={{ fontSize: 21, fontWeight: 700, color: "#1c1a17", letterSpacing: "-0.02em", marginBottom: 14 }}>Edge AI on-orbit — processing where the data lives</h3>
+              <p style={{ fontSize: 15, color: "#4a4540", lineHeight: 1.75, marginBottom: 20 }}>
+                SoilSentinel runs a heterogeneous pipeline of commercial off-the-shelf (COTS) processors, each chosen for its power-to-performance ratio in a constrained satellite environment. The pipeline is tiered: lightweight always-on processors handle routine sensing; power-hungry processors wake only when an anomaly is detected.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { name: "FPGA", color: "#6b5c7a", power: "~1W", role: "Always-on cloud masking and raw sensor I/O. Filters corrupt pixels and preprocesses data before any ML runs." },
+                  { name: "Myriad X VPU", color: "#3d6b7c", power: "~2W", role: "Runs NDVI/NDWI inference and spatial anomaly detection continuously. Triggers the GPU pipeline when a threshold is crossed." },
+                  { name: "AMD GPU", color: "#c17f24", power: "~15W", role: "On-alert only. Runs PT-JPL ET estimation and drought severity mapping when the VPU flags a region of concern." },
+                  { name: "CPU", color: "#4a7c59", power: "~5W", role: "Orchestrates the pipeline, manages scheduling, packages GeoJSON alert packets, and controls the downlink queue." },
+                ].map((hw) => (
+                  <div key={hw.name} style={{ padding: "14px 16px", background: "#ffffff", borderRadius: 10, border: "1px solid #e2ddd7" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: "#1c1a17" }}>{hw.name}</span>
+                      <span style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "#9b8f83" }}>{hw.power}</span>
+                    </div>
+                    <div style={{ width: "100%", height: 2, background: hw.color, borderRadius: 1, marginBottom: 8, opacity: 0.5 }} />
+                    <p style={{ fontSize: 12, color: "#4a4540", lineHeight: 1.6, margin: 0 }}>{hw.role}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: "20px 24px", background: "#ffffff", borderRadius: 12, border: "1px solid #e2ddd7" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#9b8f83", marginBottom: 6 }}>BANDWIDTH RESULT</div>
+              <p style={{ fontSize: 14, color: "#4a4540", lineHeight: 1.7, margin: 0 }}>
+                By processing on-orbit and downlinking only alert packets and compressed GeoJSON polygons, SoilSentinel reduces the per-pass data volume from <strong style={{ color: "#1c1a17" }}>500 MB of raw imagery</strong> to under <strong style={{ color: "#4a7c59" }}>2 MB of structured alerts</strong> — a &gt;99% reduction — while preserving full scientific fidelity for affected regions.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {tab === "about" && (
+        <div style={{ flex: 1, overflowY: "auto", padding: "40px 0", background: "#f7f4ef" }}>
+          <div style={{ maxWidth: 820, margin: "0 auto", padding: "0 32px", display: "flex", flexDirection: "column", gap: 32 }}>
+
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>The Project</div>
+              <h2 style={{ fontSize: 28, fontWeight: 700, color: "#1c1a17", letterSpacing: "-0.03em", lineHeight: 1.2, marginBottom: 16 }}>SoilSentinel</h2>
+              <p style={{ fontSize: 15, color: "#4a4540", lineHeight: 1.75, marginBottom: 16 }}>
+                SoilSentinel is an adaptive drought early-warning system built for the <strong style={{ color: "#1c1a17" }}>NASA ESTO Space to Soil Challenge 2026</strong>. It demonstrates how heterogeneous on-orbit edge computing — combining FPGA, VPU, GPU, and CPU processors — can transform raw satellite sensor streams into actionable drought alerts, faster and with a fraction of the bandwidth required by traditional ground-processing pipelines.
+              </p>
+              <p style={{ fontSize: 15, color: "#4a4540", lineHeight: 1.75 }}>
+                The system fuses four NASA Earth observation datasets — SMAP soil moisture, MODIS vegetation indices, ECOSTRESS evapotranspiration, and ECOSTRESS evaporative stress — into a unified drought severity signal that can detect emerging conditions <strong style={{ color: "#1c1a17" }}>14 to 18 days before traditional ground-based methods</strong>.
+              </p>
+            </div>
+
+            <div style={{ padding: "24px 28px", background: "#ffffff", borderRadius: 14, border: "1px solid #e2ddd7" }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>NASA ESTO · Space to Soil Challenge</div>
+              <p style={{ fontSize: 14, color: "#4a4540", lineHeight: 1.75, marginBottom: 12 }}>
+                The Space to Soil Challenge asks competitors to design novel Earth observation systems that close the gap between satellite data collection and on-the-ground agricultural decision-making. The core constraint: solutions must operate within the power, mass, and bandwidth limits of a small satellite platform.
+              </p>
+              <p style={{ fontSize: 14, color: "#4a4540", lineHeight: 1.75, margin: 0 }}>
+                SoilSentinel's answer is to move AI inference from the ground to the orbit — processing raw data on the satellite itself, and downlinking only the compact, high-value alerts that farmers and emergency managers need.
+              </p>
+            </div>
+
+            <div style={{ height: 1, background: "#e2ddd7" }} />
+
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Key Innovations</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  { title: "Tiered on-orbit inference", body: "A power-aware pipeline where always-on low-watt processors (FPGA + VPU) continuously screen for anomalies, and high-power processors (GPU) activate only when drought signals are detected — minimizing energy use without sacrificing detection sensitivity." },
+                  { title: "Multi-source data fusion", body: "No single satellite dataset reliably captures drought across all geographies and crop types. SoilSentinel fuses soil moisture, vegetation health, evapotranspiration, and evaporative stress into a composite severity score with confidence weighting." },
+                  { title: ">99% bandwidth reduction", body: "By compressing 500 MB of raw sensor data per pass into under 2 MB of structured GeoJSON alert packets, SoilSentinel is viable on low-cost small satellite platforms with limited downlink capacity." },
+                  { title: "14–18 day early warning", body: "Validated against the 2012 U.S. Midwest drought — one of the most well-documented agricultural disasters in modern history — SoilSentinel detects drought onset weeks before ground-based monitoring networks register the event." },
+                ].map((item) => (
+                  <div key={item.title} style={{ padding: "16px 20px", background: "#ffffff", borderRadius: 10, border: "1px solid #e2ddd7" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1c1a17", marginBottom: 5 }}>{item.title}</div>
+                    <p style={{ fontSize: 13, color: "#4a4540", lineHeight: 1.65, margin: 0 }}>{item.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: "#e2ddd7" }} />
+
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#9b8f83", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Data & Acknowledgements</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { label: "SMAP L4 Soil Moisture", doi: "10.5067/LWJ6TF5SZRG3", src: "NASA GSFC" },
+                  { label: "MODIS NDVI/NDWI MOD13Q1", doi: "10.5067/MODIS/MOD13Q1.061", src: "NASA GSFC / LP DAAC" },
+                  { label: "ECOSTRESS PT-JPL ET", doi: "10.5067/ECOSTRESS/ECO3ETPTJPL.001", src: "NASA JPL" },
+                  { label: "ECOSTRESS ESI ALEXI", doi: "10.5067/ECOSTRESS/ECO4ESIALEXI.001", src: "NASA JPL" },
+                ].map((d) => (
+                  <div key={d.doi} style={{ padding: "12px 16px", background: "#ffffff", borderRadius: 9, border: "1px solid #e2ddd7" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1c1a17", marginBottom: 3 }}>{d.label}</div>
+                    <div style={{ fontSize: 10, color: "#9b8f83", marginBottom: 2 }}>{d.src}</div>
+                    <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "#c0b9b0" }}>DOI: {d.doi}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: "16px 20px", background: "#ffffff", borderRadius: 10, border: "1px solid #e2ddd7", fontSize: 12, color: "#9b8f83", lineHeight: 1.7 }}>
+              Built for the NASA ESTO Space to Soil Challenge 2026. Simulation scenario: 2012 U.S. Midwest drought. All data products are publicly available via NASA Earthdata.
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {tab === "dashboard" && <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <main style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px", gap: 16, minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             <Metric label="Regions in alert" value={alerts.length} sub={`of ${REGIONS.length} monitored`} color={alerts.length > 8 ? "#c17f24" : alerts.length > 4 ? "#8b8427" : "#4a7c59"} />
@@ -479,7 +663,8 @@ export default function SoilSentinelDashboard() {
             </div>
           </div>
         </aside>
-      </div>
+      </div>}
+
     </div>
   );
 }
