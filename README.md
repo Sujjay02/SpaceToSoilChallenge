@@ -4,6 +4,8 @@
 
 NASA ESTO Space to Soil 2026 competition entry — heterogeneous COTS platform category.
 
+**Live demo:** [spacechallenge.vercel.app](https://spacechallenge.vercel.app/)
+
 ---
 
 ## Overview
@@ -121,7 +123,14 @@ SpaceToSoilChallenge/
 ├── README.md
 ├── .gitignore
 ├── dashboard/
-│   └── soilSentinel.jsx        React interactive visualization dashboard
+│   └── soilSentinel.jsx        Source component (canonical design file)
+├── dashboard-app/              Deployed Vite + React application
+│   ├── src/
+│   │   ├── App.jsx             Full dashboard with Dashboard / Background / About tabs
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── package.json
+│   └── vite.config.js
 ├── pipeline/
 │   ├── data_loaders.py         NASA Earthdata access + synthetic simulation
 │   ├── pipeline.py             3-tier onboard detection logic + CLI
@@ -134,14 +143,26 @@ SpaceToSoilChallenge/
 
 ## Quick Start
 
-### Dashboard
+### Dashboard (local)
 
 ```bash
-# Drop soilSentinel.jsx into any React project and render:
-import SoilSentinelDashboard from "./dashboard/soilSentinel";
+cd dashboard-app
+npm install
+npm run dev
+# Open http://localhost:5173
 ```
 
-The dashboard simulates the full 20-week 2012 Midwest drought with interactive playback, severity mapping, hardware pipeline status, per-region dataset readings, and real-time downlink efficiency metrics.
+The dashboard has three tabs:
+- **Dashboard** — interactive 20-week drought simulation with playback, severity map, per-region dataset readings, hardware pipeline status, and downlink efficiency metrics
+- **Background** — the science: why the 2012 drought matters, how each dataset works, and the rationale for on-orbit edge processing
+- **About** — NASA ESTO challenge context, key innovations, and dataset citations
+
+### Deploy to Vercel
+
+```bash
+cd dashboard-app
+vercel deploy --prod
+```
 
 ### Python Pipeline
 
