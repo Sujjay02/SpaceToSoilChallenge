@@ -106,6 +106,3 @@
 
 Lead days represent detection advantage over traditional 3–7 day ground-based assessment.
 
----
-
-*Replace this document with an actual architecture diagram (PNG/SVG) before final submission.*

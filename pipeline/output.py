@@ -67,7 +67,7 @@ def week_to_iso(week: int) -> str:
 
 def week_to_label(week: int) -> str:
     d = datetime.date(2012, 5, 7) + datetime.timedelta(weeks=week)
-    return d.strftime("%b %-d, %Y")
+    return d.strftime("%b %d, %Y").replace(" 0", " ")
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,10 @@
+# SoilSentinel pipeline — Python 3.10+
+#
+# Demo mode (python pipeline/pipeline.py --demo) uses stdlib only.
+# Real-data mode (--real-data) additionally requires the packages below.
+
+# --- required for --real-data (free NASA Earthdata credentials, no payment) ---
+earthaccess>=0.9.0
+h5py>=3.9.0
+netCDF4>=1.6.0
+numpy>=1.24.0

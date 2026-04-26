@@ -1,16 +1,28 @@
-# React + Vite
+# SoilSentinel Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interactive visualization of the onboard drought detection pipeline.
+Live demo: **https://spacechallenge.vercel.app**
 
-Currently, two official plugins are available:
+## Quick start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+cd dashboard-app
+npm install
+npm run dev
+```
 
-## React Compiler
+Open http://localhost:5173 in your browser.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Build for production
 
-## Expanding the ESLint configuration
+```bash
+npm run build   # output goes to dist/
+npm run preview # serve the production build locally
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Tech stack
+
+- React 19 + Vite 8
+- Pure CSS (no UI library) — all chart/map rendering is hand-coded SVG
+- No backend: the simulation runs entirely in the browser using the same
+  deterministic formulas as `pipeline/pipeline.py`

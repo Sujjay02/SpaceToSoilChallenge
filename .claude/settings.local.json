@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python pipeline/pipeline.py --demo)",
+      "Bash(python pipeline/pipeline.py --week 9)",
+      "Bash(python -c \"import sys; sys.stdout.reconfigure\\(encoding='utf-8'\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 python pipeline/pipeline.py --week 9)",
+      "Bash(PYTHONIOENCODING=utf-8 python pipeline/pipeline.py --week 8 --output-dir examples)",
+      "Bash(python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 python -m pytest tests/test_pipeline.py -v)",
+      "Bash(pip install *)",
+      "Bash(PYTHONIOENCODING=utf-8 python validate.py)"
+    ]
+  }
+}
