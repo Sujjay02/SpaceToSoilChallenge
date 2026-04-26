@@ -35,3 +35,8 @@ output/
 Thumbs.db
 .vscode/
 .idea/
+
+#AI Suggestions
+# AI-generated code suggestions (if using GitHub Copilot or similar)
+.copilot/
+.claude/
